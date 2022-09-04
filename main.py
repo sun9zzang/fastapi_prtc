@@ -1,16 +1,37 @@
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI
+from pydantic import BaseModel
+from uuid import uuid4
+
 
 app = FastAPI()
 
-items = {"foo": "The Foo Wrestlers"}
+current_tasks = []
 
 
-@app.get("/items/{item_id}")
-async def read_item(item_id: str):
-    if item_id not in items:
-        raise HTTPException(
-            status_code=404,
-            detail="Item not found",
-            headers={"X-Error": "There goes my error"},
-        )
-    return {"item": items[item_id]}
+class Task(BaseModel):
+    uid: str | None = None
+    title: str
+    content: str | None = None
+    deadline: str
+
+
+@app.get("/tasks/")
+async def get_tasks():
+    return {"current_task": current_tasks}
+
+
+@app.post("/tasks/")
+async def add_task(task: Task):
+    task.uid = str(uuid4())
+    print(task)
+    current_tasks.append(task)
+    return {"msg": "Task added successfully!", "title_task_added": task.title}
+
+
+@app.delete("/tasks/{task_uid}")
+async def delete_task(task_uid: str):
+    for i, task in enumerate(current_tasks):
+        if task.uid == task_uid:
+            del current_tasks[i]
+            return {"task_del_message": "Task deleted successfully!", "uid_task_deleted": task_uid}
+    
