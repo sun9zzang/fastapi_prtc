@@ -1,4 +1,4 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, Query
 from pydantic import BaseModel
 from uuid import uuid4
 import pymysql
@@ -14,27 +14,28 @@ class Task(BaseModel):
     deadline: str
 
 
-@app.get("/tasks/")
-async def get_tasks():
+@app.get("/tasks")
+async def get_tasks(page: int = Query(1)):
+    PAGE_SIZE = 50
     conn = pymysql.connect(host="localhost", user="root", password="", db="db_task", charset="utf8")
     cur = conn.cursor()
-    sql = "select * from tasks"
+    sql = f"select * from tasks limit {(page - 1) * PAGE_SIZE}, {PAGE_SIZE}"
     cur.execute(sql)
 
-    current_tasks = []
+    tasks = []
     if cur:
         col_name = [i[0] for i in cur.description]
         for row in cur:
             json_obj = {}
             for i, col in enumerate(col_name):
                 json_obj.update({col: row[i]})
-            current_tasks.append(json_obj)
+            tasks.append(json_obj)
         
     conn.close()
-    return {"current_tasks": current_tasks}
+    return tasks
 
 
-@app.post("/tasks/")
+@app.post("/tasks")
 async def add_task(task: Task):
     conn = pymysql.connect(host="localhost", user="root", password="", db="db_task", charset="utf8")
     cur = conn.cursor()
@@ -44,7 +45,7 @@ async def add_task(task: Task):
     conn.commit()
     conn.close()
     
-    return {"msg": "Task added successfully!", "title_task_added": task.title}
+    return task
 
 
 @app.delete("/tasks/{task_uid}")
@@ -56,5 +57,5 @@ async def delete_task(task_uid: str):
     conn.commit()
     conn.close()
 
-    return {"task_del_message": "Task deleted successfully!", "uid_task_deleted": task_uid}
+    return {"task_uid": task_uid}
     
