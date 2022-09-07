@@ -2,9 +2,12 @@ from fastapi import FastAPI, Query
 from pydantic import BaseModel
 from uuid import uuid4
 import pymysql
+import sqlalchemy as db
 
 
 app = FastAPI()
+
+engine = db.create_engine("mysql+pymysql://root:@localhost:3306/db_task")
 
 
 class Task(BaseModel):
@@ -17,32 +20,30 @@ class Task(BaseModel):
 @app.get("/tasks")
 async def get_tasks(page: int = Query(1)):
     PAGE_SIZE = 50
-    conn = pymysql.connect(host="localhost", user="root", password="", db="db_task", charset="utf8")
-    cur = conn.cursor()
-    sql = f"select * from tasks limit {(page - 1) * PAGE_SIZE}, {PAGE_SIZE}"
-    cur.execute(sql)
+    conn = engine.connect()
+    metadata = db.MetaData()
+    table_tasks = db.Table('tasks', metadata, autoload=True, autoload_with=engine)
 
-    tasks = []
-    if cur:
-        col_name = [i[0] for i in cur.description]
-        for row in cur:
-            json_obj = {}
-            for i, col in enumerate(col_name):
-                json_obj.update({col: row[i]})
-            tasks.append(json_obj)
-        
+    query = db.select([table_tasks]).limit(PAGE_SIZE).offset((page - 1) * PAGE_SIZE)
+    result_proxy = conn.execute(query)
+    result_set = result_proxy.fetchall()
+    
+    result_proxy.close()
     conn.close()
-    return tasks
+    return result_set
 
 
 @app.post("/tasks")
 async def add_task(task: Task):
-    conn = pymysql.connect(host="localhost", user="root", password="", db="db_task", charset="utf8")
-    cur = conn.cursor()
+    conn = engine.connect()
+    metadata = db.MetaData()
+    table_task = db.Table('tasks', metadata, autoload=True, autoload_with=engine)
+
     task.uid = str(uuid4())
-    sql = f"insert into tasks values ('{task.uid}', '{task.title}', '{task.content}', '{task.deadline}')"
-    cur.execute(sql)
-    conn.commit()
+
+    query = db.insert(table_task).values(uid=task.uid, title=task.title, content=task.content, deadline=task.deadline)
+    result_proxy = conn.execute(query)
+    result_proxy.close()
     conn.close()
     
     return task
@@ -50,11 +51,13 @@ async def add_task(task: Task):
 
 @app.delete("/tasks/{task_uid}")
 async def delete_task(task_uid: str):
-    conn = pymysql.connect(host="localhost", user="root", password="", db="db_task", charset="utf8")
-    cur = conn.cursor()
-    sql = f"delete from tasks where uid='{task_uid}'"
-    cur.execute(sql)
-    conn.commit()
+    conn = engine.connect()
+    metadata = db.MetaData()
+    table_task = db.Table('tasks', metadata, autoload=True, autoload_with=engine)
+
+    query = db.delete(table_task).where(table_task.columns.uid == task_uid)
+    result_proxy = conn.execute(query)
+    result_proxy.close()
     conn.close()
 
     return {"task_uid": task_uid}
