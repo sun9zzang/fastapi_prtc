@@ -60,7 +60,6 @@ async def get_tasks(page: int = Query(1), title: Optional[str] = Query(None)):
     # print(f"page: {page}, title: {title}")
 
     with session_scope() as session:
-        query = None
         if title:
             query = session.query(TblTasks).filter(TblTasks.title.like(f"%{title}%")).limit(page_size).offset(
                 (page - 1) * page_size)
