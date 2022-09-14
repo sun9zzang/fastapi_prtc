@@ -1,9 +1,9 @@
-from fastapi import FastAPI, Query, Response
+from fastapi import FastAPI, Query, Response, Body
 from pydantic import BaseModel
 
 from typing import Optional
 from uuid import uuid4
-from datetime import datetime
+from datetime import datetime, timezone
 
 from db_connection import TblTasks, obj_as_dict, session_scope
 
@@ -21,23 +21,23 @@ class Task(BaseModel):
 @app.get("/tasks")
 async def get_tasks(page: int = Query(1), title: Optional[str] = Query(None)):
     page_size = 50
-    # print(f"page: {page}, title: {title}")
 
     with session_scope() as session:
+        query = session.query(TblTasks).limit(page_size).offset((page - 1) * page_size)
         if title:
-            query = session.query(TblTasks).filter(TblTasks.title.like(f"%{title}%")).limit(page_size).offset(
-                (page - 1) * page_size)
-        else:
-            query = session.query(TblTasks).limit(page_size).offset((page - 1) * page_size)
+            query = query.filter(TblTasks.title.like(f"%{title}%"))
 
         result = [obj_as_dict(row) for row in query.all()]
+        for row in result:
+            print(type(row['deadline']))
         return result
 
 
 @app.post("/tasks")
 async def add_task(task: Task):
     task.uid = str(uuid4())
-    new_task = TblTasks(uid=task.uid, title=task.title, content=task.content, deadline=task.deadline)
+    new_task = TblTasks(uid=task.uid, title=task.title, content=task.content,
+                        deadline=task.deadline.astimezone(timezone.utc))  # todo
 
     with session_scope() as session:
         session.add(new_task)
