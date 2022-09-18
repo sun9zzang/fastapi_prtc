@@ -7,12 +7,11 @@ from datetime import datetime, timezone
 
 from db_connection import TblTasks, obj_as_dict, session_scope
 
-
 app = FastAPI()
 
 
 class Task(BaseModel):
-    uid: Optional[str] = None
+    id: Optional[str] = None
     title: str
     content: Optional[str] = None
     deadline: datetime
@@ -35,8 +34,8 @@ async def get_tasks(page: int = Query(1), title: Optional[str] = Query(None)):
 
 @app.post("/tasks")
 async def add_task(task: Task):
-    task.uid = str(uuid4())
-    new_task = TblTasks(uid=task.uid, title=task.title, content=task.content,
+    task.id = str(uuid4())
+    new_task = TblTasks(id=task.id, title=task.title, content=task.content,
                         deadline=task.deadline.astimezone(timezone.utc))  # todo
 
     with session_scope() as session:
@@ -48,7 +47,7 @@ async def add_task(task: Task):
 @app.delete("/tasks/{task_uid}")
 async def delete_task(task_uid: str):
     with session_scope() as session:
-        query = session.query(TblTasks).filter(TblTasks.uid == task_uid)
+        query = session.query(TblTasks).filter(TblTasks.id == task_uid)
         query.delete()
 
     return Response(status_code=204)
