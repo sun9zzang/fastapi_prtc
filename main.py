@@ -1,4 +1,4 @@
-from fastapi import FastAPI, Query, Response, Body
+from fastapi import FastAPI, Query, Response
 from pydantic import BaseModel
 
 from typing import Optional
@@ -8,6 +8,8 @@ from datetime import datetime, timezone
 from db_connection import TblTasks, obj_as_dict, session_scope
 
 app = FastAPI()
+
+page_size = 50
 
 
 class Task(BaseModel):
@@ -19,7 +21,7 @@ class Task(BaseModel):
 
 @app.get("/tasks")
 async def get_tasks(page: int = Query(1), title: Optional[str] = Query(None)):
-    page_size = 50
+    # page_size = 50
 
     with session_scope() as session:
         query = session.query(TblTasks).limit(page_size).offset((page - 1) * page_size)
@@ -27,16 +29,18 @@ async def get_tasks(page: int = Query(1), title: Optional[str] = Query(None)):
             query = query.filter(TblTasks.title.like(f"%{title}%"))
 
         result = [obj_as_dict(row) for row in query.all()]
-        for row in result:
-            print(type(row['deadline']))
         return result
 
 
 @app.post("/tasks")
 async def add_task(task: Task):
     task.id = str(uuid4())
-    new_task = TblTasks(id=task.id, title=task.title, content=task.content,
-                        deadline=task.deadline.astimezone(timezone.utc))  # todo
+    new_task = TblTasks(
+        id=task.id,
+        title=task.title,
+        content=task.content,
+        deadline=task.deadline.astimezone(timezone.utc),
+    )  # todo
 
     with session_scope() as session:
         session.add(new_task)
@@ -44,10 +48,10 @@ async def add_task(task: Task):
     return task.dict()
 
 
-@app.delete("/tasks/{task_uid}")
-async def delete_task(task_uid: str):
+@app.delete("/tasks/{task_id}")
+async def delete_task(task_id: str):
     with session_scope() as session:
-        query = session.query(TblTasks).filter(TblTasks.id == task_uid)
+        query = session.query(TblTasks).filter(TblTasks.id == task_id)
         query.delete()
 
     return Response(status_code=204)
