@@ -4,13 +4,11 @@ from fastapi.testclient import TestClient
 from uuid import uuid4
 from datetime import datetime
 
-from db_connection import session_scope
 from main import app, Task
 
 client = TestClient(app)
 
 random_task_id = str(uuid4())
-session_scope = pytest.fixture(session_scope, scope="module")
 
 
 def test_get_tasks():
