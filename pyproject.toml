@@ -4,7 +4,6 @@ version = "0.1.0"
 description = ""
 authors = ["sun9zzang <sun9nyy@gmail.com>"]
 readme = "README.md"
-packages = [{include = "fastapi_prtc"}]
 
 [tool.poetry.dependencies]
 python = "^3.10"

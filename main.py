@@ -9,8 +9,6 @@ from db_connection import TblTasks, obj_as_dict, session_scope
 
 app = FastAPI()
 
-page_size = 50
-
 
 class Task(BaseModel):
     id: Optional[str] = None
@@ -21,7 +19,7 @@ class Task(BaseModel):
 
 @app.get("/tasks")
 async def get_tasks(page: int = Query(1), title: Optional[str] = Query(None)):
-    # page_size = 50
+    page_size = 50
 
     with session_scope() as session:
         query = session.query(TblTasks).limit(page_size).offset((page - 1) * page_size)
@@ -34,7 +32,8 @@ async def get_tasks(page: int = Query(1), title: Optional[str] = Query(None)):
 
 @app.post("/tasks")
 async def add_task(task: Task):
-    task.id = str(uuid4())
+    if not task.id:
+        task.id = str(uuid4())
     new_task = TblTasks(
         id=task.id,
         title=task.title,
@@ -52,6 +51,8 @@ async def add_task(task: Task):
 async def delete_task(task_id: str):
     with session_scope() as session:
         query = session.query(TblTasks).filter(TblTasks.id == task_id)
+        if len(query.all()) == 0:
+            return Response(status_code=404)
         query.delete()
 
     return Response(status_code=204)
