@@ -1,15 +1,12 @@
 import pytest
-from fastapi.testclient import TestClient
 from httpx import AsyncClient
 
 import logging
 from uuid import uuid4
 from datetime import datetime
 
-from main import app, Task
+from main import Task
 
-
-client = TestClient(app)
 
 random_task_id = str(uuid4())
 
