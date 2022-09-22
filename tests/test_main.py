@@ -4,6 +4,7 @@ from datetime import datetime
 
 import pytest
 from httpx import AsyncClient
+from starlette import status
 
 from main import Task
 
@@ -18,7 +19,7 @@ async def test_get_tasks():
         response = await ac.get("/tasks")
         logging.info(response.json())
 
-        assert response.status_code == 200
+        assert response.status_code == status.HTTP_200_OK
 
 
 @pytest.mark.asyncio
@@ -35,11 +36,11 @@ async def test_add_task():
         response = await ac.post("/tasks", content=task_test.json())
         logging.info(response.json())
 
-        assert response.status_code == 200
+        assert response.status_code == status.HTTP_200_OK
 
 
 @pytest.mark.asyncio
 async def test_delete_task():
     async with AsyncClient(base_url=localhost_url) as ac:
         response = await ac.delete(f"/tasks/{random_task_id}")
-        assert response.status_code == 204
+        assert response.status_code == status.HTTP_204_NO_CONTENT
