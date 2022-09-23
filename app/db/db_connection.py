@@ -1,4 +1,4 @@
-from sqlalchemy import Column, String, DateTime, create_engine, inspect
+from sqlalchemy import create_engine, inspect
 from sqlalchemy.orm import sessionmaker, declarative_base
 
 from contextlib import contextmanager
@@ -16,18 +16,6 @@ engine = create_engine(
     future=True,
 )
 Session = sessionmaker(bind=engine)
-
-
-class TblTasks(Base):
-    __tablename__ = "tbl_tasks"
-
-    id = Column(String, primary_key=True)
-    title = Column(String)
-    content = Column(String)
-    deadline = Column(DateTime)
-
-    def __repr__(self):
-        return f"TblTasks(uid={self.id}, title={self.title}, content={self.content}, deadline={self.deadline})"
 
 
 @contextmanager
