@@ -1,11 +1,12 @@
 from typing import Optional
 from uuid import uuid4
 
-from fastapi import FastAPI, Query
+from fastapi import FastAPI, Query, Response
+from starlette import status
 
 from app.db.db_connection import session_scope
 from app.db.repositories.tasks import TasksRepository
-from app.models import Task
+from app.models.tasks import Task
 
 app = FastAPI()
 
@@ -26,4 +27,7 @@ async def add_task(task: Task):
 @app.delete("/tasks/{task_id}")
 async def delete_task(task_id: str):
     tasks_repository = TasksRepository(session_scope)
-    return tasks_repository.delete(task_id=task_id)
+    if tasks_repository.delete(task_id=task_id):
+        return Response(status_code=status.HTTP_204_NO_CONTENT)
+    else:
+        return Response(status_code=status.HTTP_404_NOT_FOUND)

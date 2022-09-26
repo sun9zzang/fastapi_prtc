@@ -6,7 +6,7 @@ from starlette import status
 
 from app.main import Task, app
 from app.db.db_connection import session_scope
-from app.models import TasksInDB
+from app.models.tasks import TblTasks
 
 client = TestClient(app)
 
@@ -39,9 +39,7 @@ def test_user_can_create_task():
     assert response.status_code == status.HTTP_200_OK
 
     with session_scope() as session:
-        query = (
-            session.query(TasksInDB.id).where(TasksInDB.id == test_task_id).first()
-        )
+        query = session.query(TblTasks.id).where(TblTasks.id == test_task_id).first()
         assert query
 
 
@@ -52,7 +50,5 @@ def test_user_can_delete_task():
     assert response.status_code == status.HTTP_204_NO_CONTENT
 
     with session_scope() as session:
-        query = (
-            session.query(TasksInDB.id).where(TasksInDB.id == test_task_id).first()
-        )
+        query = session.query(TblTasks.id).where(TblTasks.id == test_task_id).first()
         assert not query

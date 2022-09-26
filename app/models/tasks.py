@@ -14,7 +14,7 @@ class Task(BaseModel):
     deadline: datetime
 
 
-class TasksInDB(Base):
+class TblTasks(Base):
     __tablename__ = "tbl_tasks"
 
     id = Column(String, primary_key=True)

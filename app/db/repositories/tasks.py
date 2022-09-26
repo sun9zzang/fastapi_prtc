@@ -4,26 +4,27 @@ from datetime import timezone
 from fastapi import Query, Response
 
 from app.db.repositories.base import BaseRepository
-from app.models import Task, TasksInDB
+from app.models.tasks import Task, TblTasks
 
 
 class TasksRepository(BaseRepository):
-
-    def get(
-        self, page_offset: int = Query(1), title: Optional[str] = Query(None)
-    ):
+    def get(self, page_offset: int = Query(1), title: Optional[str] = Query(None)):
         page_size = 50
 
         with self.session() as session:
-            query = session.query(TasksInDB).limit(page_size).offset((page_offset - 1) * page_size)
+            query = (
+                session.query(TblTasks)
+                .limit(page_size)
+                .offset((page_offset - 1) * page_size)
+            )
             if title:
-                query = query.filter(TasksInDB.title.like(f"%{title}%"))
+                query = query.filter(TblTasks.title.like(f"%{title}%"))
 
             result = [row.__dict__ for row in query.all()]
             return result
 
     def add(self, task: Task):
-        new_task = TasksInDB(
+        new_task = TblTasks(
             id=task.id,
             title=task.title,
             content=task.content,
@@ -36,9 +37,9 @@ class TasksRepository(BaseRepository):
 
     def delete(self, task_id: str):
         with self.session() as session:
-            query = session.query(TasksInDB).filter(TasksInDB.id == task_id).first()
-            if not query:
-                return Response(status_code=404)
-            session.delete(query)
+            query = session.query(TblTasks).filter(TblTasks.id == task_id).first()
+            if query:
+                session.delete(query)
+                return Response(status_code=204)
 
-        return Response(status_code=204)
+        return Response(status_code=404)

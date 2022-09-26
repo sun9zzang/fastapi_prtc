@@ -1,11 +1,13 @@
+import json
+from contextlib import contextmanager
+
 from sqlalchemy import create_engine, inspect
 from sqlalchemy.orm import sessionmaker, declarative_base
 
-from contextlib import contextmanager
+from app.secrets.secrets import get_secret
 
 db_url = {
-    "aws_rds": "mysql+pymysql://admin:pwd12345"
-    "@todo-list-rds.cmlkx2wu51ea.ap-northeast-2.rds.amazonaws.com:3306/todo_list",
+    "aws_rds": json.loads(get_secret())["todo_list.db_connection_url"],
     "local": "mysql+pymysql://root:pwd12345@localhost:3306/todo_list",
 }
 
