@@ -6,7 +6,9 @@ from starlette import status
 
 from app.db.db_connection import session_scope
 from app.db.repositories.tasks import TasksRepository
+from app.db.repositories.users import UserRepository
 from app.models.tasks import Task
+from app.models.users import User, UserInCreate
 
 app = FastAPI()
 
@@ -31,3 +33,16 @@ async def delete_task(task_id: str):
         return Response(status_code=status.HTTP_204_NO_CONTENT)
     else:
         return Response(status_code=status.HTTP_404_NOT_FOUND)
+
+
+@app.post("/register")
+async def register_account(user: UserInCreate):
+    user_repository = UserRepository(session_scope)
+    return user_repository.create_user(user)
+
+
+@app.get("/login")
+async def login(user_in_login: UserInLogin):
+    user_repository = UserRepository(session_scope)
+
+    if user_repository.get_user_by_username(user_in_login.username):

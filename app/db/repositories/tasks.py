@@ -1,7 +1,7 @@
 from typing import Optional
 from datetime import timezone
 
-from fastapi import Query, Response
+from fastapi import Query
 
 from app.db.repositories.base import BaseRepository
 from app.models.tasks import Task, TblTasks
@@ -40,6 +40,6 @@ class TasksRepository(BaseRepository):
             query = session.query(TblTasks).filter(TblTasks.id == task_id).first()
             if query:
                 session.delete(query)
-                return Response(status_code=204)
+                return True
 
-        return Response(status_code=404)
+        return False

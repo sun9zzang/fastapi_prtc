@@ -6,8 +6,15 @@ from app.db.db_connection import Base
 
 class User(BaseModel):
     username: str
-    password: str
     email: str
+
+
+class UserInDB(User):
+    hashed_password: str
+
+
+class UserInCreate(User):
+    password: str
 
 
 class TblUsers(Base):
