@@ -2,6 +2,7 @@ from pydantic import BaseModel
 from sqlalchemy import Column, String
 
 from app.db.db_connection import Base
+from app.services import security
 
 
 class User(BaseModel):
@@ -9,12 +10,22 @@ class User(BaseModel):
     email: str
 
 
-class UserInDB(User):
-    hashed_password: str
+class UserInLogin(BaseModel):
+    username: str
+    password: str
 
 
 class UserInCreate(User):
     password: str
+
+
+class UserInDB(User):
+    salt: str = ""
+    hashed_password: str = ""
+
+    def change_password(self, password: str):
+        self.salt = security.generate_salt()
+        self.hashed_password = security.get_password_hash(self.salt + password)
 
 
 class TblUsers(Base):
