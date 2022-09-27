@@ -1,9 +1,14 @@
+import json
+
 import boto3
 import base64
 from botocore.exceptions import ClientError
 
+JWT_SECRET_KEY = "c77a10dcebb87946108aa17b57286bb6fdb0857ccd4a3faef2815eaeedf823fb"
+# JWT_SECRET_KEY = get_secret()["todo_list.jwt_secret_key"]
 
-def get_secret():
+
+def get_secret() -> dict:
     # Get AWS Secrets Manager's response
     secret_name = "/secrets/todo_list"
     region_name = "ap-northeast-2"
@@ -32,11 +37,11 @@ def get_secret():
     else:
         # Decrypts secret using the associated KMS key.
         # Depending on whether the secret is a string or binary, one of these fields will be populated.
+        secret = ""
         if "SecretString" in get_secret_value_response:
             secret = get_secret_value_response["SecretString"]
-            return secret
         else:
-            decoded_binary_secret = base64.b64decode(
+            secret = base64.b64decode(
                 get_secret_value_response["SecretBinary"]
             )
-            return decoded_binary_secret
+        return json.loads(secret)

@@ -7,11 +7,22 @@ from sqlalchemy import Column, String, Text, DateTime
 from app.db.db_connection import Base
 
 
-class Task(BaseModel):
-    id: Optional[str] = None
+class TaskBase(BaseModel):
     title: str
-    content: Optional[str] = ""
+    content: str = ""
     deadline: datetime
+
+
+class Task(TaskBase):
+    id: str
+
+
+class TaskInCreate(TaskBase):
+    ...
+
+
+class TaskInUpdate(TaskBase):
+    ...
 
 
 class TblTasks(Base):

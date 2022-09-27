@@ -1,13 +1,12 @@
-import json
 from contextlib import contextmanager
 
-from sqlalchemy import create_engine, inspect
+from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker, declarative_base
 
-from app.secrets.secrets import get_secret
+from app.services.secrets import get_secret
 
 db_url = {
-    "aws_rds": json.loads(get_secret())["todo_list.db_connection_url"],
+    "aws_rds": get_secret()["todo_list.db_connection_url"],
     "local": "mysql+pymysql://root:pwd12345@localhost:3306/todo_list",
 }
 
@@ -31,7 +30,3 @@ def session_scope():
         raise
     finally:
         session.close()
-
-
-def obj_as_dict(obj):
-    return {c.key: getattr(obj, c.key) for c in inspect(obj).mapper.column_attrs}

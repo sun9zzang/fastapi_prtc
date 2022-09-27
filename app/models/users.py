@@ -1,3 +1,5 @@
+from typing import Optional
+
 from pydantic import BaseModel
 from sqlalchemy import Column, String
 
@@ -13,6 +15,14 @@ class User(BaseModel):
 class UserInLogin(BaseModel):
     username: str
     password: str
+
+
+class UserWithToken(User):
+    token: str
+
+
+class UserInResponse(BaseModel):
+    user: UserWithToken
 
 
 class UserInCreate(User):
