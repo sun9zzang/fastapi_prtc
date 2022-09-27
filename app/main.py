@@ -47,5 +47,12 @@ async def register_account(user_in_create: UserInCreate):
 
 @app.get("/login")
 async def login(user_in_login: UserInLogin):
-    ...
+    user_repository = UserRepository(session_scope)
+
+    user = authenticate_user(user_repository, user_in_login)
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Incorrect username or password",
+        )
 
