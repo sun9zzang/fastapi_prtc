@@ -2,6 +2,7 @@ from typing import Optional
 
 from pydantic import BaseModel
 from sqlalchemy import Column, String
+from sqlalchemy.orm import relationship
 
 from app.db.db_connection import Base
 from app.services import security
@@ -41,6 +42,8 @@ class UserInDB(User):
 class TblUsers(Base):
     __tablename__ = "tbl_users"
 
-    username = Column(String, primary_key=True)
-    password = Column(String)
+    username = Column(String, primary_key=True, index=True)
     email = Column(String)
+    hashed_password = Column(String)
+
+    tasks = relationship("TblTasks", back_populates="user")
