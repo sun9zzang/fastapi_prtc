@@ -6,6 +6,7 @@ from fastapi.security import APIKeyHeader
 from app.api.dependencies.database import get_repository
 from app.core.config import JWT_SECRET_KEY, JWT_TOKEN_PREFIX
 from app.db.repositories.users import UsersRepository
+from app.db.errors import EntityDoesNotExist
 from app.models.users import User
 from app.services import jwt
 
@@ -21,7 +22,7 @@ def _get_authorization_header_retriever() -> Callable:
 
 
 def _get_authorization_header(
-    api_key: str = Security(APIKeyHeader(name=HEADER_KEY)),
+    api_key: str = Security(APIKeyHeader(name=HEADER_KEY, auto_error=False)),
 ) -> str:
     try:
         token_prefix, token = api_key.split(" ")
@@ -52,7 +53,7 @@ def _get_current_user(
 
     try:
         return await users_repo.get_user_by_username(username=username)
-    except ValueError:  # add custom exception
+    except EntityDoesNotExist:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN, detail="malformed payload"
         )

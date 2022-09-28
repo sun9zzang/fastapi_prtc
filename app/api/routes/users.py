@@ -11,7 +11,7 @@ from app.services import jwt
 router = APIRouter()
 
 
-@router.get("", response_model=UserInResponse)
+@router.get("", response_model=UserInResponse, name="users:get-current-user")
 async def get_current_user(user: User = Depends(get_current_user_authorizer())):
     token = jwt.create_access_token_for_user(user, JWT_SECRET_KEY)
     return UserInResponse(
@@ -22,7 +22,7 @@ async def get_current_user(user: User = Depends(get_current_user_authorizer())):
     )
 
 
-@router.patch("", response_model=UserInResponse)
+@router.patch("", response_model=UserInResponse, name="users:update-current-user")
 async def update_current_user(
     user_in_update: UserInUpdate,
     users_repo: UsersRepository = Depends(get_repository(UsersRepository)),

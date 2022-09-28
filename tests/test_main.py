@@ -1,12 +1,12 @@
 import logging
 from datetime import datetime
 
+from fastapi import status
 from fastapi.testclient import TestClient
-from starlette import status
 
-from app.main import Task, app
+from app.main import app
 from app.db.db_connection import session_scope
-from app.models.tasks import TblTasks
+from app.models.tasks import Task, TblTasks
 
 client = TestClient(app)
 

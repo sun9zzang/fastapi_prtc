@@ -2,35 +2,11 @@ from fastapi import APIRouter, Depends, HTTPException, status
 
 from app.api.dependencies.database import get_repository
 from app.db.repositories.users import UsersRepository
-from app.models.users import UserInCreate, UserInLogin, UserInResponse, UserWithToken
-from app.services.authentication import (
-    check_username_is_taken,
-    check_email_is_taken,
-)
+from app.models.users import UserInLogin, UserInResponse, UserWithToken
 from app.services.jwt import create_access_token_for_user
 from app.services.secrets import JWT_SECRET_KEY
 
 router = APIRouter()
-
-
-@router.post("/register", status_code=status.HTTP_201_CREATED)
-async def register(
-    user_in_create: UserInCreate,
-    users_repo: UsersRepository = Depends(get_repository(UsersRepository)),
-):
-    if await check_username_is_taken(users_repo, user_in_create.username):
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST, detail="username is taken"
-        )
-
-    if await check_email_is_taken(users_repo, user_in_create.email):
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST, detail="email is taken"
-        )
-
-    user = await users_repo.create_user(user_in_create)
-
-    return user
 
 
 @router.get("/login", response_model=UserInResponse)

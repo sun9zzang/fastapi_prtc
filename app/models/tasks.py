@@ -12,17 +12,18 @@ class TaskBase(BaseModel):
     title: str
     content: str = ""
     deadline: datetime
-
-
-class Task(TaskBase):
-    id: str
+    username: str
 
 
 class TaskInCreate(TaskBase):
     ...
 
 
-class TaskInUpdate(TaskBase):
+class Task(TaskBase):
+    id: str
+
+
+class TaskInUpdate(Task):
     ...
 
 
