@@ -3,13 +3,13 @@ from uuid import uuid4
 
 import pytest
 from fastapi import FastAPI
-from fastapi.testclient import TestClient
+from httpx import AsyncClient
 
 from app.core.config import JWT_SECRET_KEY
 from app.db.repositories.tasks import TasksRepository
 from app.db.repositories.users import UsersRepository
-from app.db.db_connection import session_scope
-from app.models.tasks import Task, TaskInCreate
+from app.db.db_connection import get_scoped_session
+from app.models.tasks import Task
 from app.models.users import UserInCreate, UserInDB
 from app.services import jwt
 
@@ -22,15 +22,19 @@ def app() -> FastAPI:
 
 
 @pytest.fixture
-def client(app: FastAPI) -> TestClient:
-    with TestClient(app) as client:
+async def client(app: FastAPI) -> AsyncClient:
+    async with AsyncClient(
+        app=app,
+        base_url="http://127.0.0.1:8000",
+        headers={"Content-type": "application/json"},
+    ) as client:
         yield client
 
 
 @pytest.fixture
 async def test_user() -> UserInDB:
-    return await UsersRepository(session_scope).create_user(
-        user_in_create=UserInCreate(
+    return await UsersRepository(get_scoped_session).create_user(
+        user=UserInCreate(
             username="username",
             email="test@test.com",
             password="password",
@@ -40,7 +44,7 @@ async def test_user() -> UserInDB:
 
 @pytest.fixture
 async def test_task(test_user: UserInDB) -> Task:
-    return await TasksRepository(session_scope).create_task(
+    return await TasksRepository(get_scoped_session).create_task(
         task=Task(
             id=str(uuid4()),
             title="test_title",
@@ -70,6 +74,6 @@ def wrong_authorization_header(request) -> str:
 
 
 @pytest.fixture
-def authorized_client(client: TestClient, token: str) -> TestClient:
+def authorized_client(client: AsyncClient, token: str) -> AsyncClient:
     client.headers.update({"Authorization": f"Token {token}"})
     return client

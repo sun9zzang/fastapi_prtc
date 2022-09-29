@@ -5,7 +5,7 @@ from fastapi import FastAPI, status
 from fastapi.testclient import TestClient
 
 from app.db.repositories.tasks import TasksRepository
-from app.db.db_connection import session_scope
+from app.db.db_connection import get_scoped_session
 from app.db.errors import EntityDoesNotExist
 from app.models.tasks import Task
 
@@ -68,7 +68,7 @@ def test_user_can_create_task(
     )
     assert response.status_code == status.HTTP_201_CREATED
 
-    task_created = TasksRepository(session_scope).get_task_by_id(test_task.id)
+    task_created = TasksRepository(get_scoped_session).get_task_by_id(test_task.id)
     assert task_created
 
 
@@ -112,12 +112,16 @@ def test_user_can_delete_task(
     authorized_client: TestClient,
     test_task: Task,
 ) -> None:
-    response = authorized_client.delete(app.url_path_for("tasks:delete-task", task_id=test_task.id))
+    response = authorized_client.delete(
+        app.url_path_for("tasks:delete-task", task_id=test_task.id)
+    )
     assert response.status_code == status.HTTP_204_NO_CONTENT
 
     task_deleted = None
     try:
-        task_deleted = TasksRepository(session_scope).get_task_by_id(test_task.id)
+        task_deleted = TasksRepository(get_scoped_session).get_task_by_id(
+            task_id=test_task.id
+        )
     except EntityDoesNotExist:
         pass
     finally:

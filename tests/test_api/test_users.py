@@ -3,7 +3,7 @@ from fastapi import FastAPI, status
 from fastapi.testclient import TestClient
 
 from app.db.repositories.users import UsersRepository
-from app.db.db_connection import session_scope
+from app.db.db_connection import get_scoped_session
 from app.models.users import UserInDB, UserInResponse
 
 
@@ -76,7 +76,7 @@ def test_user_can_update_own_profile(
     assert user_in_response["user"][update_field] == update_value
 
 
-def test_user_can_change_password(
+async def test_user_can_change_password(
     app: FastAPI,
     authorized_client: TestClient,
     token: str,
@@ -88,21 +88,21 @@ def test_user_can_change_password(
     assert response.status_code == status.HTTP_200_OK
 
     user_in_response = UserInResponse(**response.json())
-    user = await UsersRepository(session_scope).get_user_by_username(
+    user = await UsersRepository(get_scoped_session).get_user_by_username(
         username=user_in_response.user.username
     )
     assert user.check_password("new_password")
 
 
 @pytest.mark.parametrize(
-    "credentials_part, credentials_value",
+    "credentials_field, credentials_value",
     (("username", "taken_username"), ("email", "taken@test.com")),
 )
 def test_user_cannot_take_already_taken_credentials(
     app: FastAPI,
     authorized_client: TestClient,
     token: str,
-    credentials_part: str,
+    credentials_field: str,
     credentials_value: str,
 ) -> None:
     user_dict = {
@@ -110,12 +110,12 @@ def test_user_cannot_take_already_taken_credentials(
         "password": "password",
         "email": "not_taken@test.com",
     }
-    user_dict.update({credentials_part: credentials_value})
-    await UsersRepository(session_scope).create_user(**user_dict)
+    user_dict.update({credentials_field: credentials_value})
+    await UsersRepository(get_scoped_session).create_user(**user_dict)
 
     response = authorized_client.put(
         app.url_path_for("users:update-current-user"),
-        json={"user": {credentials_part: credentials_value}},
+        json={"user": {credentials_field: credentials_value}},
     )
     assert response.status_code == status.HTTP_400_BAD_REQUEST
 
@@ -139,4 +139,3 @@ def test_user_can_withdraw(
 ) -> None:
     response = authorized_client.delete(app.url_path_for("users:withdraw-current-user"))
     assert response.status_code == status.HTTP_204_NO_CONTENT
-

@@ -6,7 +6,6 @@ from fastapi import Query
 from app.db.repositories.base import BaseRepository
 from app.db.errors import EntityDoesNotExist
 from app.models.tasks import Task, TaskInUpdate, TblTasks
-from app.models.users import User
 
 
 class TasksRepository(BaseRepository):
@@ -24,24 +23,25 @@ class TasksRepository(BaseRepository):
         *,
         page_offset: int = Query(1),
         title: Optional[str] = Query(None),
-        user: User,
+        username: str,
     ) -> list[Task]:
         page_size = 50
 
         with self.session() as session:
             task_tbl = (
                 session.query(TblTasks)
-                .filter(TblTasks.username == user.username)
+                .filter(TblTasks.username == username)
                 .limit(page_size)
                 .offset((page_offset - 1) * page_size)
             )
             if title:
                 task_tbl = task_tbl.filter(TblTasks.title.like(f"%{title}%"))
 
-            result = [Task(**row.__dict__) for row in task_tbl.all()]
-            return result
+            result = [Task(**task_row.__dict__) for task_row in task_tbl.all()]
 
-    async def create_task(self, task: Task) -> Task:
+        return result
+
+    async def create_task(self, *, task: Task) -> Task:
         new_task = TblTasks(
             id=task.id,
             title=task.title,
@@ -54,17 +54,17 @@ class TasksRepository(BaseRepository):
 
         return task
 
-    async def update_task(self, task_in_update: TaskInUpdate) -> Task:
+    async def update_task(self, *, task: TaskInUpdate) -> Task:
         with self.session() as session:
-            task_row = session.query(TblTasks).filter(TblTasks.id == task_in_update.id).first()
+            task_row = session.query(TblTasks).filter(TblTasks.id == task.id).first()
             if task_row:
-                task_row.update(**task_in_update.dict(), synchronize_session="fetch")
+                task_row.update(**task.dict(), synchronize_session="fetch")
                 return Task(**task_row.__dict__)
             raise EntityDoesNotExist(
-                f"task with id {task_in_update.id} does not exist",
+                f"task with id {task.id} does not exist",
             )
 
-    async def delete_task(self, task_id: str) -> None:
+    async def delete_task(self, *, task_id: str) -> None:
         with self.session() as session:
             task_row = session.query(TblTasks).filter(TblTasks.id == task_id).first()
             if task_row:

@@ -26,12 +26,12 @@ class UsersRepository(BaseRepository):
                 f"user with email {email} does not exist",
             )
 
-    async def create_user(self, user_in_create: UserInCreate) -> UserInDB:
+    async def create_user(self, *, user: UserInCreate) -> UserInDB:
         user_in_db = UserInDB(
-            username=user_in_create.username,
-            email=user_in_create.email,
+            username=user.username,
+            email=user.email,
         )
-        user_in_db.change_password(user_in_create.password)
+        user_in_db.change_password(user.password)
 
         user_row = TblUsers(**user_in_db.dict())
         with self.session() as session:
@@ -41,6 +41,7 @@ class UsersRepository(BaseRepository):
 
     async def update_user(
         self,
+        *,
         user: User,
         username: str,
         email: str,

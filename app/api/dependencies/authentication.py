@@ -40,7 +40,7 @@ def _get_authorization_header(
     return token
 
 
-def _get_current_user(
+async def _get_current_user(
     users_repo: UsersRepository = Depends(get_repository(UsersRepository)),
     token: str = Depends(_get_authorization_header_retriever()),
 ) -> User:
@@ -48,12 +48,14 @@ def _get_current_user(
         username = jwt.get_username_from_token(token, JWT_SECRET_KEY)
     except ValueError:
         raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN, detail="malformed payload"
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="malformed payload",
         )
 
     try:
         return await users_repo.get_user_by_username(username=username)
     except EntityDoesNotExist:
         raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN, detail="malformed payload"
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="malformed payload",
         )

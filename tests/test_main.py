@@ -5,7 +5,7 @@ from fastapi import status
 from fastapi.testclient import TestClient
 
 from app.main import app
-from app.db.db_connection import session_scope
+from app.db.db_connection import get_scoped_session
 from app.models.tasks import Task, TblTasks
 
 client = TestClient(app)
@@ -38,7 +38,7 @@ def test_user_can_create_task():
 
     assert response.status_code == status.HTTP_200_OK
 
-    with session_scope() as session:
+    with get_scoped_session() as session:
         query = session.query(TblTasks.id).where(TblTasks.id == test_task_id).first()
         assert query
 
@@ -49,6 +49,6 @@ def test_user_can_delete_task():
     response = client.delete(f"/tasks/{test_task_id}")
     assert response.status_code == status.HTTP_204_NO_CONTENT
 
-    with session_scope() as session:
+    with get_scoped_session() as session:
         query = session.query(TblTasks.id).where(TblTasks.id == test_task_id).first()
         assert not query

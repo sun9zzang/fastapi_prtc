@@ -20,7 +20,7 @@ Session = sessionmaker(bind=engine)
 
 
 @contextmanager
-def session_scope():
+def get_scoped_session():
     session = Session()
     try:
         yield session

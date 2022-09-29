@@ -18,16 +18,22 @@ class UserInLogin(BaseModel):
     password: str
 
 
+class UserInCreate(User):
+    password: str
+
+
+class UserInUpdate(BaseModel):
+    username: Optional[str] = None
+    email: Optional[str] = None
+    password: Optional[str] = None
+
+
 class UserWithToken(User):
     token: str
 
 
 class UserInResponse(BaseModel):
     user: UserWithToken
-
-
-class UserInCreate(User):
-    password: str
 
 
 class UserInDB(User):

@@ -1,4 +1,3 @@
-from typing import Optional
 from datetime import datetime
 
 from pydantic import BaseModel
@@ -25,6 +24,11 @@ class Task(TaskBase):
 
 class TaskInUpdate(Task):
     ...
+
+
+class TaskInDelete(BaseModel):
+    id: str
+    username: str
 
 
 class TblTasks(Base):
