@@ -53,6 +53,7 @@ class TblUsers(Base):
 
     username = Column(String, primary_key=True, index=True)
     email = Column(String)
+    salt = Column(String)
     hashed_password = Column(String)
 
     tasks = relationship("TblTasks", back_populates="user")

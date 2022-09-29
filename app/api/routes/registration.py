@@ -26,6 +26,6 @@ async def register(
             status_code=status.HTTP_400_BAD_REQUEST, detail="email is already taken"
         )
 
-    await users_repo.create_user(user)
+    await users_repo.create_user(user=user)
 
     return Response(status_code=status.HTTP_201_CREATED)

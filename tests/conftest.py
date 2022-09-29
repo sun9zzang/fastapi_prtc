@@ -25,7 +25,7 @@ def app() -> FastAPI:
 async def client(app: FastAPI) -> AsyncClient:
     async with AsyncClient(
         app=app,
-        base_url="http://127.0.0.1:8000",
+        base_url="http://testserver",
         headers={"Content-type": "application/json"},
     ) as client:
         yield client
