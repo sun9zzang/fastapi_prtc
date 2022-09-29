@@ -1,14 +1,15 @@
 from typing import Optional
+from datetime import datetime, timezone
 from uuid import uuid4
 
-from fastapi import APIRouter, Depends, HTTPException, Response, Query, status
-from fastapi.exceptions import RequestValidationError
+from fastapi import APIRouter, Body, Depends, HTTPException, Response, Query, status
 
 from app.api.dependencies.authentication import get_current_user_authorizer
 from app.api.dependencies.database import get_repository
+from app.core import config
 from app.db.repositories.tasks import TasksRepository
 from app.db.errors import EntityDoesNotExist
-from app.models.tasks import Task, TaskInCreate, TaskInUpdate, TaskInDelete
+from app.models.tasks import Task, TaskInCreate, TaskInUpdate, TaskInResponse
 from app.models.users import User
 
 
@@ -28,7 +29,7 @@ async def retrieve_tasks(
     current_user: User = Depends(get_current_user_authorizer()),
     tasks_repo: TasksRepository = Depends(get_repository(TasksRepository)),
 ):
-    tasks = await tasks_repo.get_tasks(
+    tasks = await tasks_repo.retrieve_tasks(
         page_offset=page_offset, title=title, username=current_user.username
     )
 
@@ -37,23 +38,26 @@ async def retrieve_tasks(
 
 @router.post(
     "",
-    response_model=Task,
+    response_model=TaskInResponse,
     name="tasks:create-task",
     status_code=status.HTTP_201_CREATED,
 )
 async def create_task(
-    task: TaskInCreate,
+    task: TaskInCreate = Body(..., embed=True),
     current_user: User = Depends(get_current_user_authorizer()),
     tasks_repo: TasksRepository = Depends(get_repository(TasksRepository)),
 ):
     if current_user.username != task.username:
-        raise RequestValidationError("invalid user data")
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="permission denied",
+        )
 
     task_created = Task(
         id=str(uuid4()),
         title=task.title,
         content=task.content,
-        deadline=task.deadline,
+        deadline=task.deadline.astimezone(timezone.utc),
         username=task.username,
     )
     await tasks_repo.create_task(task=task_created)
@@ -63,21 +67,23 @@ async def create_task(
 
 @router.put(
     "",
-    response_model=Task,
     name="tasks:update-task",
-    status_code=status.HTTP_200_OK,
 )
 async def update_task(
-    task: TaskInUpdate,
+    task: TaskInUpdate = Body(..., embed=True),
     current_user: User = Depends(get_current_user_authorizer()),
     tasks_repo: TasksRepository = Depends(get_repository(TasksRepository)),
 ):
     if current_user.username != task.username:
-        raise RequestValidationError("invalid user data")
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="permission denied",
+        )
+
+    task.deadline_to_datetime()
 
     await tasks_repo.update_task(task=task)
-
-    return task
+    return Response(status_code=status.HTTP_200_OK)
 
 
 @router.delete(
@@ -85,19 +91,31 @@ async def update_task(
     name="tasks:delete-task",
 )
 async def delete_task(
-    task: TaskInDelete,
+    task_id: str,
     current_user: User = Depends(get_current_user_authorizer()),
     tasks_repo: TasksRepository = Depends(get_repository(TasksRepository)),
 ):
-    if current_user.username != task.username:
-        raise RequestValidationError("invalid user data")
-
+    task = None
     try:
-        await tasks_repo.delete_task(task_id=task.id)
+        task = await tasks_repo.get_task_by_id(task_id=task_id)
     except EntityDoesNotExist as existence_error:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=existence_error.args[0],
         ) from existence_error
-    finally:
+
+    if current_user.username != task.username:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="permission denied",
+        )
+
+    try:
+        await tasks_repo.delete_task(task_id=task_id)
+    except EntityDoesNotExist as existence_error:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=existence_error.args[0],
+        ) from existence_error
+    else:
         return Response(status_code=status.HTTP_204_NO_CONTENT)

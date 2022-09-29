@@ -62,3 +62,14 @@ class UsersRepository(BaseRepository):
 
             user_row.update(user_in_db.dict(), synchronize_session="fetch")
             return user_in_db
+
+    async def withdraw_user(self, *, username: str) -> None:
+        with self.session() as session:
+            user_row = (
+                session.query(TblUsers).filter(TblUsers.username == username).first()
+            )
+            if user_row:
+                session.delete(user_row)
+            raise EntityDoesNotExist(
+                f"user with username {username} does not exist",
+            )

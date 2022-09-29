@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, Response, status
+from fastapi import APIRouter, Body, Depends, HTTPException, Response, status
 
 from app.api.dependencies.database import get_repository
 from app.db.repositories.users import UsersRepository
@@ -13,7 +13,7 @@ router = APIRouter()
 
 @router.post("", name="auth:register")
 async def register(
-    user: UserInCreate,
+    user: UserInCreate = Body(..., embed=True),
     users_repo: UsersRepository = Depends(get_repository(UsersRepository)),
 ):
     if await check_username_is_taken(users_repo, user.username):

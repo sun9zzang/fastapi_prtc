@@ -1,16 +1,18 @@
 from datetime import datetime
+from typing import Optional, Union
 
 from pydantic import BaseModel
 from sqlalchemy import Column, String, Text, DateTime, ForeignKey
 from sqlalchemy.orm import relationship
 
+from app.core import config
 from app.db.db_connection import Base
 
 
 class TaskBase(BaseModel):
     title: str
-    content: str = ""
-    deadline: datetime
+    content: str
+    deadline: str
     username: str
 
 
@@ -24,11 +26,6 @@ class Task(TaskBase):
 
 class TaskInUpdate(Task):
     ...
-
-
-class TaskInDelete(BaseModel):
-    id: str
-    username: str
 
 
 class TblTasks(Base):

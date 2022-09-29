@@ -8,7 +8,7 @@ from app.models.users import UserInDB
 async def test_user_can_login(
     app: FastAPI,
     client: AsyncClient,
-    test_user: UserInDB,
+    # test_user: UserInDB,
 ) -> None:
     login_json = {
         "user": {
@@ -17,7 +17,7 @@ async def test_user_can_login(
         }
     }
     print(login_json)
-    response = await client.post(app.url_path_for("auth:login"), data=login_json)
+    response = await client.post(app.url_path_for("auth:login"), json=login_json)
     print(response.json())
     assert response.status_code == status.HTTP_200_OK
 

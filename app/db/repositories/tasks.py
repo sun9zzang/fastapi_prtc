@@ -1,5 +1,4 @@
 from typing import Optional
-from datetime import timezone
 
 from fastapi import Query
 
@@ -18,7 +17,7 @@ class TasksRepository(BaseRepository):
                 f"task with id {task_id} does not exist",
             )
 
-    async def get_tasks(
+    async def retrieve_tasks(
         self,
         *,
         page_offset: int = Query(1),
@@ -46,20 +45,20 @@ class TasksRepository(BaseRepository):
             id=task.id,
             title=task.title,
             content=task.content,
-            deadline=task.deadline.astimezone(timezone.utc),
+            deadline=task.deadline,
             username=task.username,
         )
+
         with self.session() as session:
             session.add(new_task)
 
         return task
 
-    async def update_task(self, *, task: TaskInUpdate) -> Task:
+    async def update_task(self, *, task: Task) -> None:
         with self.session() as session:
-            task_row = session.query(TblTasks).filter(TblTasks.id == task.id).first()
+            task_row = session.query(TblTasks).filter(TblTasks.id == task.id)
             if task_row:
-                task_row.update(**task.dict(), synchronize_session="fetch")
-                return Task(**task_row.__dict__)
+                task_row.update(task.dict(), synchronize_session="fetch")
             raise EntityDoesNotExist(
                 f"task with id {task.id} does not exist",
             )

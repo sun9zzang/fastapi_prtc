@@ -1,26 +1,26 @@
 import pytest
 from fastapi import FastAPI, status
-from fastapi.testclient import TestClient
+from httpx import AsyncClient
 
 from app.db.repositories.users import UsersRepository
 from app.db.db_connection import get_scoped_session
 
 
-def test_user_can_registration(
+async def test_user_can_registration(
     app: FastAPI,
-    client: TestClient,
+    client: AsyncClient,
 ) -> None:
     username = "username"
     email = "test@test.com"
     password = "password"
     registration_json = {
-        "user_in_create": {
+        "user": {
             "username": username,
             "email": email,
             "password": password,
         }
     }
-    response = client.post(
+    response = await client.post(
         app.url_path_for("auth:register"),
         json=registration_json,
     )
@@ -39,22 +39,22 @@ def test_user_can_registration(
         ("email", "unique@test.com"),
     ),
 )
-def test_user_cannot_register_if_some_credentials_are_already_taken(
+async def test_user_cannot_register_if_some_credentials_are_already_taken(
     app: FastAPI,
-    client: TestClient,
+    client: AsyncClient,
     credentials_field: str,
     credentials_value: str,
 ) -> None:
     registration_json = {
-        "user_in_create": {
+        "user": {
             "username": "username",
             "email": "test@test.com",
             "password": "password",
         }
     }
-    registration_json["user_in_create"][credentials_field] = credentials_value
+    registration_json["user"][credentials_field] = credentials_value
 
-    response = client.post(
+    response = await client.post(
         app.url_path_for("auth:register"),
         json=registration_json,
     )

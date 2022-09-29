@@ -24,9 +24,10 @@ def _get_authorization_header_retriever() -> Callable:
 def _get_authorization_header(
     api_key: str = Security(APIKeyHeader(name=HEADER_KEY, auto_error=False)),
 ) -> str:
+
     try:
         token_prefix, token = api_key.split(" ")
-    except ValueError:
+    except (AttributeError, ValueError):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Wrong token prefix",
