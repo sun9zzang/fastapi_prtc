@@ -3,4 +3,4 @@ JWT_SECRET_KEY = "c77a10dcebb87946108aa17b57286bb6fdb0857ccd4a3faef2815eaeedf823
 
 JWT_TOKEN_PREFIX = "Token"
 
-DATETIME_FORMAT_STRING = "%Y-%m-%dT%H:%M:%S.%f"
+DATETIME_FORMAT_STRING = "%Y-%m-%d %H:%M:%S.%f"

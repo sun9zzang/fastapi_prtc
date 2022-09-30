@@ -1,18 +1,22 @@
 from typing import Optional
 
-from fastapi import Query
-
 from app.db.repositories.base import BaseRepository
 from app.db.errors import EntityDoesNotExist
-from app.models.tasks import Task, TaskInUpdate, TblTasks
+from app.db.db_connection import get_scoped_session
+from app.models.tasks import Task, TblTasks
+from app.services import utils
+
+import logging
 
 
+# noinspection PyMethodMayBeStatic
 class TasksRepository(BaseRepository):
     async def get_task_by_id(self, task_id: str) -> Task:
-        with self.session() as session:
+        with get_scoped_session() as session:
             task_row = session.query(TblTasks).filter(TblTasks.id == task_id).first()
-            if task_row:
-                return Task(**task_row.__dict__)
+            if task_row is not None:
+                # return Task(**task_row_dict)
+                return task_row.convert_to_task()
             raise EntityDoesNotExist(
                 f"task with id {task_id} does not exist",
             )
@@ -20,13 +24,13 @@ class TasksRepository(BaseRepository):
     async def retrieve_tasks(
         self,
         *,
-        page_offset: int = Query(1),
-        title: Optional[str] = Query(None),
         username: str,
+        page_offset: int,
+        title: Optional[str],
     ) -> list[Task]:
         page_size = 50
 
-        with self.session() as session:
+        with get_scoped_session() as session:
             task_tbl = (
                 session.query(TblTasks)
                 .filter(TblTasks.username == username)
@@ -36,7 +40,7 @@ class TasksRepository(BaseRepository):
             if title:
                 task_tbl = task_tbl.filter(TblTasks.title.like(f"%{title}%"))
 
-            result = [Task(**task_row.__dict__) for task_row in task_tbl.all()]
+            result = [task_row.convert_to_task() for task_row in task_tbl.all()]
 
         return result
 
@@ -45,28 +49,31 @@ class TasksRepository(BaseRepository):
             id=task.id,
             title=task.title,
             content=task.content,
-            deadline=task.deadline,
+            deadline=utils.convert_string_to_datetime(task.deadline),
             username=task.username,
         )
 
-        with self.session() as session:
+        with get_scoped_session() as session:
             session.add(new_task)
 
         return task
 
-    async def update_task(self, *, task: Task) -> None:
-        with self.session() as session:
-            task_row = session.query(TblTasks).filter(TblTasks.id == task.id)
-            if task_row:
-                task_row.update(task.dict(), synchronize_session="fetch")
-            raise EntityDoesNotExist(
-                f"task with id {task.id} does not exist",
-            )
+    async def update_task(self, *, task: Task) -> Task:
+        with get_scoped_session() as session:
+            task_dict = task.dict()
+            task_dict["deadline"] = utils.convert_string_to_datetime(task.deadline)
+            try:
+                session.query(TblTasks).filter(TblTasks.id == task.id).\
+                    update(task_dict, synchronize_session="fetch")
+            except Exception as e:
+                raise EntityDoesNotExist from e
+
+        return task
 
     async def delete_task(self, *, task_id: str) -> None:
-        with self.session() as session:
+        with get_scoped_session() as session:
             task_row = session.query(TblTasks).filter(TblTasks.id == task_id).first()
-            if task_row:
+            if task_row is not None:
                 session.delete(task_row)
             else:
                 raise EntityDoesNotExist(

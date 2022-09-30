@@ -7,13 +7,13 @@ from sqlalchemy.orm import relationship
 
 from app.core import config
 from app.db.db_connection import Base
+from app.services import utils
 
 
 class TaskBase(BaseModel):
     title: str
     content: str
     deadline: str
-    username: str
 
 
 class TaskInCreate(TaskBase):
@@ -22,6 +22,7 @@ class TaskInCreate(TaskBase):
 
 class Task(TaskBase):
     id: str
+    username: str
 
 
 class TaskInUpdate(Task):
@@ -38,3 +39,12 @@ class TblTasks(Base):
     deadline = Column(DateTime)
 
     user = relationship("TblUsers", back_populates="tasks")
+
+    def convert_to_task(self) -> Task:
+        return Task(
+            id=self.id,
+            username=self.username,
+            title=self.title,
+            content=self.content,
+            deadline=utils.convert_datetime_to_string(self.deadline),
+        )

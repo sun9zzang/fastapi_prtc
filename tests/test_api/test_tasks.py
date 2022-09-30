@@ -1,37 +1,47 @@
-from datetime import datetime
 from uuid import uuid4
+import logging
 
 import pytest
 from fastapi import FastAPI, status
 from httpx import AsyncClient
 
-from app.core import config
 from app.db.repositories.tasks import TasksRepository
-from app.db.db_connection import get_scoped_session
-from app.db.errors import EntityDoesNotExist
 from app.models.tasks import Task
 from app.models.users import UserInDB
 
+logging.basicConfig(level=logging.DEBUG)
+log = logging.getLogger(__name__)
+
 
 @pytest.mark.parametrize(
-    "api_method, route_name, additional_url",
+    "api_method, route_name",
     (
-        ("POST", "tasks:create-task", ""),
-        ("GET", "tasks:retrieve-tasks", ""),
-        ("PUT", "tasks:update-task", ""),
-        ("DELETE", "tasks:delete-task", "/"),
+        ("POST", "tasks:create-task"),
+        ("GET", "tasks:retrieve-tasks"),
+        ("PUT", "tasks:update-task"),
     ),
 )
 async def test_user_cannot_access_task_if_not_logged_in(
     app: FastAPI,
     client: AsyncClient,
+    test_task: Task,
     api_method: str,
     route_name: str,
-    additional_url: str,
 ) -> None:
     response = await client.request(
         api_method,
-        app.url_path_for(route_name) + additional_url,
+        app.url_path_for(route_name),
+    )
+    assert response.status_code == status.HTTP_403_FORBIDDEN
+
+
+async def test_user_cannot_delete_task_if_not_logged_in(
+    app: FastAPI,
+    client: AsyncClient,
+    test_task: Task,
+) -> None:
+    response = await client.delete(
+        app.url_path_for("tasks:delete-task", task_id=test_task.id)
     )
     assert response.status_code == status.HTTP_403_FORBIDDEN
 
@@ -42,12 +52,12 @@ async def test_user_cannot_access_task_if_not_logged_in(
         ("POST", "tasks:create-task"),
         ("GET", "tasks:retrieve-tasks"),
         ("PUT", "tasks:update-task"),
-        ("DELETE", "tasks:delete-task"),
     ),
 )
 async def test_user_cannot_retrieve_task_if_token_is_wrong(
     app: FastAPI,
     client: AsyncClient,
+    test_task: Task,
     api_method: str,
     route_name: str,
     wrong_authorization_header: str,
@@ -55,6 +65,19 @@ async def test_user_cannot_retrieve_task_if_token_is_wrong(
     response = await client.request(
         api_method,
         app.url_path_for(route_name),
+        headers={"Authorization": wrong_authorization_header},
+    )
+    assert response.status_code == status.HTTP_403_FORBIDDEN
+
+
+async def test_user_cannot_delete_task_if_token_is_wrong(
+    app: FastAPI,
+    client: AsyncClient,
+    test_task: Task,
+    wrong_authorization_header: str,
+) -> None:
+    response = await client.delete(
+        app.url_path_for("tasks:delete-task", task_id=test_task.id),
         headers={"Authorization": wrong_authorization_header},
     )
     assert response.status_code == status.HTTP_403_FORBIDDEN
@@ -73,19 +96,19 @@ async def test_user_can_create_task(
             "username": test_user.username,
         }
     }
+    log.info(f"creating new task...\n\ttask_json: {task_json}")
     response = await authorized_client.post(
         app.url_path_for("tasks:create-task"),
         json=task_json,
     )
+    log.info(f"task created")
+    task_created = response.json()
+    log.info(f"\ttask_created: {task_created}")
     assert response.status_code == status.HTTP_201_CREATED
 
-    task_created_id = response.json()["id"]
-    task_created = await TasksRepository(get_scoped_session).get_task_by_id(
-        task_created_id
-    )
-    assert task_created
-
-    await TasksRepository(get_scoped_session).delete_task(task_id=task_created_id)
+    log.info("deleting task...")
+    await TasksRepository().delete_task(task_id=task_created["id"])
+    log.info(f"- task deleted - \n\ttask.id={task_created['id']}")
 
 
 async def test_user_can_retrieve_task(
@@ -93,7 +116,9 @@ async def test_user_can_retrieve_task(
     authorized_client: AsyncClient,
     test_task: Task,
 ) -> None:
+    log.info("retrieving task...")
     response = await authorized_client.get(app.url_path_for("tasks:retrieve-tasks"))
+    log.info(f"task retrieved\n\t{response.json()}")
     assert response.status_code == status.HTTP_200_OK
 
 
@@ -114,43 +139,29 @@ async def test_user_can_update_task(
 ) -> None:
     task_dict = {"task": test_task.dict()}
     task_dict["task"].update({update_field: update_value})
+    log.info(f"updating task...\n\ttask_dict: {task_dict}")
     response = await authorized_client.put(
         app.url_path_for("tasks:update-task"),
         json=task_dict,
     )
+    log.info("task updated")
+    task_updated = response.json()
+    log.info(f"\ttask_updated: {task_updated}")
     assert response.status_code == status.HTTP_200_OK
 
-    task_updated = await TasksRepository(get_scoped_session).get_task_by_id(test_task.id)
     assert task_dict["task"]["title"] == task_updated.title
     assert task_dict["task"]["content"] == task_updated.content
-    assert task_dict["task"]["deadline"] == task_updated.title
-
+    assert task_dict["task"]["deadline"] == task_updated.deadline
 
 
 async def test_user_can_delete_task(
     app: FastAPI,
     authorized_client: AsyncClient,
-    test_user: UserInDB,
+    test_task: Task,
 ) -> None:
-    task = Task(
-        id=str(uuid4()),
-        title="test_user_can_delete_task",
-        content="test_content",
-        deadline=datetime.strptime(
-            "2123-04-05 16:07:08.123456", config.DATETIME_FORMAT_STRING
-        ),
-        username=test_user.username,
-    )
-    await TasksRepository(get_scoped_session).create_task(task=task)
-
+    log.info(f"deleting task\n\ttest_task: {test_task}")
     response = await authorized_client.delete(
-        app.url_path_for("tasks:delete-task", task_id=task.id)
+        app.url_path_for("tasks:delete-task", task_id=test_task.id),
     )
+    log.info("task deleted")
     assert response.status_code == status.HTTP_204_NO_CONTENT
-
-    try:
-        await TasksRepository(get_scoped_session).delete_task(task_id=task.id)
-    except EntityDoesNotExist:
-        pass
-    else:
-        raise AssertionError(f"task with id {task.id} was not deleted")
