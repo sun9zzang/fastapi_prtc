@@ -149,9 +149,9 @@ async def test_user_can_update_task(
     log.info(f"\ttask_updated: {task_updated}")
     assert response.status_code == status.HTTP_200_OK
 
-    assert task_dict["task"]["title"] == task_updated.title
-    assert task_dict["task"]["content"] == task_updated.content
-    assert task_dict["task"]["deadline"] == task_updated.deadline
+    assert task_dict["task"]["title"] == task_updated["title"]
+    assert task_dict["task"]["content"] == task_updated["content"]
+    assert task_dict["task"]["deadline"] == task_updated["deadline"]
 
 
 async def test_user_can_delete_task(
@@ -159,9 +159,9 @@ async def test_user_can_delete_task(
     authorized_client: AsyncClient,
     test_task: Task,
 ) -> None:
-    log.info(f"deleting task\n\ttest_task: {test_task}")
+    log.info(f"deleting task\n\ttest_task.id: {test_task.id}")
     response = await authorized_client.delete(
         app.url_path_for("tasks:delete-task", task_id=test_task.id),
     )
-    log.info("task deleted")
+    log.info(f"task deleted\n\ttest_task.id: {test_task.id}")
     assert response.status_code == status.HTTP_204_NO_CONTENT

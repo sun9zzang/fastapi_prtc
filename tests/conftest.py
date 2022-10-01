@@ -6,7 +6,8 @@ from fastapi import FastAPI
 from sqlalchemy.exc import IntegrityError
 from httpx import AsyncClient
 
-from app.core import config
+from app.core.config import JWT_SECRET_KEY
+from app.core.logging import trace
 from app.db.errors import EntityDoesNotExist
 from app.db.repositories.tasks import TasksRepository
 from app.db.repositories.users import UsersRepository
@@ -14,7 +15,7 @@ from app.models.tasks import Task
 from app.models.users import User, UserInCreate, UserInDB
 from app.services import jwt
 
-logging.basicConfig(level=logging.DEBUG)
+logging.basicConfig(level=logging.INFO)
 log = logging.getLogger()
 
 test_user_data = {
@@ -22,6 +23,12 @@ test_user_data = {
     "email": "test@test.com",
     "password": "password",
 }
+
+
+@pytest.hookimpl
+def pytest_configure(config):
+    logging_plugin = config.pluginmanager.get_plugin("logging-plugin")
+    logging_plugin.log_cli_handler.formatter.add_color_level(35, "cyan")
 
 
 @pytest.fixture
@@ -46,15 +53,11 @@ async def test_user() -> UserInDB:
     user = None
     try:
         log.info("[test_user] creating user...")
-        user = await UsersRepository().create_user(
-            user=UserInCreate(**test_user_data)
-        )
+        user = await UsersRepository().create_user(user=UserInCreate(**test_user_data))
         log.info("[test_user] user created")
     except IntegrityError:
         log.warning("[test_user] user already exists. retrieving user...")
-        user = await UsersRepository().get_user_by_username(
-            "username"
-        )
+        user = await UsersRepository().get_user_by_username("username")
         log.info("[test_user] user retrieved")
     finally:
         yield user
@@ -83,7 +86,9 @@ async def test_task(test_user: UserInDB) -> Task:
         log.info("[test_task] deleting task...")
         await TasksRepository().delete_task(task_id=task.id)
     except EntityDoesNotExist as existence_error:
-        log.info(f"[test_task] failed to delete task\n\ttask.id: {task.id}\n\terror: {existence_error}")
+        log.info(
+            f"[test_task] failed to delete task\n\ttask.id: {task.id}\n\terror: {existence_error}"
+        )
         raise EntityDoesNotExist from existence_error
 
 
@@ -92,7 +97,7 @@ def token() -> str:
     user = User(username=test_user_data["username"], email=test_user_data["email"])
 
     log.info("creating token...")
-    token = jwt.create_access_token_for_user(user, config.JWT_SECRET_KEY)
+    token = jwt.create_access_token_for_user(user, JWT_SECRET_KEY)
     log.info(f"token created\n\ttoken: {token}")
 
     return token
