@@ -1,55 +1,85 @@
+from enum import Enum
+
 import pytest
 from fastapi import FastAPI, status
-from fastapi.testclient import TestClient
+from httpx import AsyncClient
 
 from app.db.repositories.users import UsersRepository
-from app.db.db_connection import get_scoped_session
 from app.models.users import UserInDB, UserInResponse
+from tests.conftest import _TestUserData, log, _test_user_create, _test_user_withdraw
+
+
+class _TestUserRouteName(Enum):
+    retrieve_current_user = "users:retrieve-current-user"
+    update_current_user = "users:update-current-user"
+    withdraw_current_user = "users:withdraw-current-user"
 
 
 @pytest.mark.parametrize(
     "api_method, route_name",
-    (("GET", "users:get-current-user"), ("PUT", "users:update-current-user")),
+    (
+        ("POST", _TestUserRouteName.retrieve_current_user.value),
+        ("PUT", _TestUserRouteName.update_current_user.value)
+    ),
 )
-def test_user_cannot_access_own_profile_if_not_logged_in(
+async def test_user_cannot_access_own_profile_if_not_logged_in(
     app: FastAPI,
-    client: TestClient,
+    client: AsyncClient,
     api_method: str,
     route_name: str,
 ) -> None:
-    response = client.request(api_method, app.url_path_for(route_name))
+    log.info("attempting to access profile...")
+    response = await client.request(
+        api_method,
+        app.url_path_for(route_name),
+    )
+    log.info("access denied")
+    log.info(f"\tresponse: {response.json()}")
     assert response.status_code == status.HTTP_403_FORBIDDEN
 
 
 @pytest.mark.parametrize(
     "api_method, route_name",
-    (("GET", "users:get_current-user"), ("PUT", "users:update-current-user")),
+    (
+        ("POST", _TestUserRouteName.retrieve_current_user.value),
+        ("PUT", _TestUserRouteName.update_current_user.value)
+    ),
 )
-def test_user_cannot_retrieve_own_profile_if_token_is_wrong(
+async def test_user_cannot_access_own_profile_if_token_is_wrong(
     app: FastAPI,
-    client: TestClient,
+    client: AsyncClient,
     api_method: str,
     route_name: str,
     wrong_authorization_header: str,
 ) -> None:
-    response = client.request(
+    log.info("attempting to access profile...")
+    response = await client.request(
         api_method,
         app.url_path_for(route_name),
         headers={"Authorization": wrong_authorization_header},
     )
+    log.info("access denied")
+    log.info(f"\tresponse: {response.json()}")
     assert response.status_code == status.HTTP_403_FORBIDDEN
 
 
-def test_user_can_retrieve_own_profile(
+async def test_user_can_retrieve_own_profile(
     app: FastAPI,
-    authorized_client: TestClient,
+    authorized_client: AsyncClient,
     test_user: UserInDB,
     token: str,
 ) -> None:
-    response = authorized_client.get(app.url_path_for("users:get-current-user"))
+    log.info("attempting to access profile...")
+    response = await authorized_client.post(
+        app.url_path_for(_TestUserRouteName.retrieve_current_user.value)
+    )
+    log.info("access succeeded")
+    user_retrieved = response.json()
+    log.info(f"response: {user_retrieved}")
     assert response.status_code == status.HTTP_200_OK
 
-    user_in_response = UserInResponse(**response.json())
+    log.info("collating username...")
+    user_in_response = UserInResponse(**user_retrieved)
     assert user_in_response.user.username == test_user.username
 
 
@@ -60,82 +90,117 @@ def test_user_can_retrieve_own_profile(
         ("email", "new_email@test.com"),
     ),
 )
-def test_user_can_update_own_profile(
+async def test_user_can_update_own_profile(
     app: FastAPI,
-    authorized_client: TestClient,
+    authorized_client: AsyncClient,
+    test_user: UserInDB,
     update_field: str,
     update_value: str,
 ) -> None:
-    response = authorized_client.put(
-        app.url_path_for("users:update-current-user"),
-        json={"user": {update_field: update_value}},
+    log.info("attempting to update profile...")
+    response = await authorized_client.put(
+        app.url_path_for(_TestUserRouteName.update_current_user.value),
+        json={update_field: update_value},
     )
+    log.info("update succeeded")
+    log.info(f"response: {response.json()}")
     assert response.status_code == status.HTTP_200_OK
 
+    log.info("collating updated data...")
     user_in_response = UserInResponse(**response.json()).dict()
     assert user_in_response["user"][update_field] == update_value
+
+    if update_field == "username":
+        await _test_user_withdraw(username=update_value)  # todo user uid 추가하기
 
 
 async def test_user_can_change_password(
     app: FastAPI,
-    authorized_client: TestClient,
-    token: str,
+    authorized_client: AsyncClient,
+    test_user: UserInDB,
 ) -> None:
-    response = authorized_client.put(
-        app.url_path_for("users:update-current-user"),
-        json={"user": {"password": "new_password"}},
+    new_password = "new_password"
+    log.info("attempting to update password...")
+    response = await authorized_client.put(
+        app.url_path_for(_TestUserRouteName.update_current_user.value),
+        json={"password": new_password},
     )
+    log.info("update succeeded")
+    user_updated = response.json()
+    log.info(f"response: {user_updated}")
     assert response.status_code == status.HTTP_200_OK
 
-    user_in_response = UserInResponse(**response.json())
-    user = await UsersRepository(get_scoped_session).get_user_by_username(
-        username=user_in_response.user.username
+    log.info("checking password...")
+    user_in_db = await UsersRepository().get_user_by_username(
+        username=user_updated["user"]["username"]
     )
-    assert user.check_password("new_password")
+    assert user_in_db.check_password(new_password)
+
+
+@pytest.fixture
+async def _test_user_taken() -> UserInDB:
+    user_dict = {
+        "username": "taken_username",
+        "email": "taken@test.com",
+        "password": "password",
+    }
+    user = await _test_user_create(user=user_dict)
+
+    yield user
+
+    await _test_user_withdraw(user.username)
 
 
 @pytest.mark.parametrize(
     "credentials_field, credentials_value",
-    (("username", "taken_username"), ("email", "taken@test.com")),
+    (
+        ("username", "taken_username"),
+        ("email", "taken@test.com"),
+    ),
 )
-def test_user_cannot_take_already_taken_credentials(
+async def test_user_cannot_take_already_taken_credentials(
     app: FastAPI,
-    authorized_client: TestClient,
-    token: str,
+    authorized_client: AsyncClient,
+    test_user: UserInDB,
+    _test_user_taken: UserInDB,
     credentials_field: str,
     credentials_value: str,
 ) -> None:
-    user_dict = {
-        "username": "not_taken_username",
-        "password": "password",
-        "email": "not_taken@test.com",
-    }
-    user_dict.update({credentials_field: credentials_value})
-    await UsersRepository(get_scoped_session).create_user(**user_dict)
-
-    response = authorized_client.put(
-        app.url_path_for("users:update-current-user"),
-        json={"user": {credentials_field: credentials_value}},
+    log.info("attempting to update profile...")
+    log.info(f"{credentials_field}: {test_user.dict()[credentials_field]} -> {credentials_value}")
+    response = await authorized_client.put(
+        app.url_path_for(_TestUserRouteName.update_current_user.value),
+        json={credentials_field: credentials_value},
     )
+    log.info("update failed")
+    log.info(f"response: {response.json()}")
     assert response.status_code == status.HTTP_400_BAD_REQUEST
 
 
-def test_user_cannot_withdraw_if_token_is_wrong(
+async def test_user_cannot_withdraw_if_token_is_wrong(
     app: FastAPI,
-    client: TestClient,
+    client: AsyncClient,
+    test_user: UserInDB,
     wrong_authorization_header: str,
 ) -> None:
-    response = client.delete(
-        app.url_path_for("users:withdraw-current-user"),
+    log.info("attempting to withdraw user with wrong token...")
+    response = await client.delete(
+        app.url_path_for(_TestUserRouteName.withdraw_current_user.value),
         headers={"Authorization": wrong_authorization_header},
     )
+    log.info("user withdrawal failed - access denied")
+    log.info(f"response: {response.json()}")
     assert response.status_code == status.HTTP_403_FORBIDDEN
 
 
-def test_user_can_withdraw(
+async def test_user_can_withdraw(
     app: FastAPI,
-    authorized_client: TestClient,
+    authorized_client: AsyncClient,
     test_user: UserInDB,
 ) -> None:
-    response = authorized_client.delete(app.url_path_for("users:withdraw-current-user"))
+    log.info("attempting to withdraw user")
+    response = await authorized_client.delete(
+        app.url_path_for(_TestUserRouteName.withdraw_current_user.value)
+    )
+    log.info("user withdrawal succeeded")
     assert response.status_code == status.HTTP_204_NO_CONTENT

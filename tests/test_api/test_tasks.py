@@ -1,4 +1,3 @@
-from uuid import uuid4
 import logging
 
 import pytest
@@ -8,9 +7,7 @@ from httpx import AsyncClient
 from app.db.repositories.tasks import TasksRepository
 from app.models.tasks import Task
 from app.models.users import UserInDB
-
-logging.basicConfig(level=logging.DEBUG)
-log = logging.getLogger(__name__)
+from tests.conftest import log
 
 
 @pytest.mark.parametrize(
@@ -28,10 +25,13 @@ async def test_user_cannot_access_task_if_not_logged_in(
     api_method: str,
     route_name: str,
 ) -> None:
+    log.info("attempting access to task...")
     response = await client.request(
         api_method,
         app.url_path_for(route_name),
     )
+    log.info("access denied")
+    log.info(f"response: {response.json()}")
     assert response.status_code == status.HTTP_403_FORBIDDEN
 
 
@@ -40,9 +40,12 @@ async def test_user_cannot_delete_task_if_not_logged_in(
     client: AsyncClient,
     test_task: Task,
 ) -> None:
+    log.info("attempting to access tasks...")
     response = await client.delete(
         app.url_path_for("tasks:delete-task", task_id=test_task.id)
     )
+    log.info("access denied")
+    log.info(f"response: {response.json()}")
     assert response.status_code == status.HTTP_403_FORBIDDEN
 
 
@@ -54,7 +57,7 @@ async def test_user_cannot_delete_task_if_not_logged_in(
         ("PUT", "tasks:update-task"),
     ),
 )
-async def test_user_cannot_retrieve_task_if_token_is_wrong(
+async def test_user_cannot_access_task_if_token_is_wrong(
     app: FastAPI,
     client: AsyncClient,
     test_task: Task,
@@ -62,11 +65,14 @@ async def test_user_cannot_retrieve_task_if_token_is_wrong(
     route_name: str,
     wrong_authorization_header: str,
 ) -> None:
+    log.info("attempting to access tasks...")
     response = await client.request(
         api_method,
         app.url_path_for(route_name),
         headers={"Authorization": wrong_authorization_header},
     )
+    log.info("access denied")
+    log.info(f"response: {response.json()}")
     assert response.status_code == status.HTTP_403_FORBIDDEN
 
 
@@ -76,10 +82,13 @@ async def test_user_cannot_delete_task_if_token_is_wrong(
     test_task: Task,
     wrong_authorization_header: str,
 ) -> None:
+    log.info("attempting to access tasks...")
     response = await client.delete(
         app.url_path_for("tasks:delete-task", task_id=test_task.id),
         headers={"Authorization": wrong_authorization_header},
     )
+    log.info("access denied")
+    log.info(f"response: {response.json()}")
     assert response.status_code == status.HTTP_403_FORBIDDEN
 
 
@@ -101,14 +110,15 @@ async def test_user_can_create_task(
         app.url_path_for("tasks:create-task"),
         json=task_json,
     )
-    log.info(f"task created")
+    log.info("task created")
     task_created = response.json()
-    log.info(f"\ttask_created: {task_created}")
+    log.info(f"response: {task_created}")
     assert response.status_code == status.HTTP_201_CREATED
 
     log.info("deleting task...")
     await TasksRepository().delete_task(task_id=task_created["id"])
-    log.info(f"- task deleted - \n\ttask.id={task_created['id']}")
+    log.info("task deleted")
+    log.info(f"\ttask.id={task_created['id']}")
 
 
 async def test_user_can_retrieve_task(
@@ -118,7 +128,8 @@ async def test_user_can_retrieve_task(
 ) -> None:
     log.info("retrieving task...")
     response = await authorized_client.get(app.url_path_for("tasks:retrieve-tasks"))
-    log.info(f"task retrieved\n\t{response.json()}")
+    log.info(f"task retrieved")
+    log.info(f"response: {response.json()}")
     assert response.status_code == status.HTTP_200_OK
 
 
@@ -146,7 +157,7 @@ async def test_user_can_update_task(
     )
     log.info("task updated")
     task_updated = response.json()
-    log.info(f"\ttask_updated: {task_updated}")
+    log.info(f"\tresponse: {task_updated}")
     assert response.status_code == status.HTTP_200_OK
 
     assert task_dict["task"]["title"] == task_updated["title"]

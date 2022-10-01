@@ -6,8 +6,6 @@ from app.db.db_connection import get_scoped_session
 from app.models.tasks import Task, TblTasks
 from app.services import utils
 
-import logging
-
 
 # noinspection PyMethodMayBeStatic
 class TasksRepository(BaseRepository):
