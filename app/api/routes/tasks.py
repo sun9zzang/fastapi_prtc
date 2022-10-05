@@ -28,9 +28,7 @@ async def retrieve_tasks(
     tasks_repo: TasksRepository = Depends(get_repository(TasksRepository)),
 ):
     tasks = await tasks_repo.retrieve_tasks(
-        username=current_user.username,
-        page_offset=page_offset,
-        title=title,
+        page_offset=page_offset, title=title, username=current_user.username
     )
 
     return tasks

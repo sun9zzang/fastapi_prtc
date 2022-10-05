@@ -22,9 +22,9 @@ class TasksRepository(BaseRepository):
     async def retrieve_tasks(
         self,
         *,
-        username: str,
         page_offset: int,
         title: Optional[str],
+        username: str,
     ) -> list[Task]:
         page_size = 50
 
@@ -61,8 +61,9 @@ class TasksRepository(BaseRepository):
             task_dict = task.dict()
             task_dict["deadline"] = utils.convert_string_to_datetime(task.deadline)
             try:
-                session.query(TblTasks).filter(TblTasks.id == task.id).\
-                    update(task_dict, synchronize_session="fetch")
+                session.query(TblTasks).filter(TblTasks.id == task.id).update(
+                    task_dict, synchronize_session="fetch"
+                )
             except Exception as e:
                 raise EntityDoesNotExist from e
 
